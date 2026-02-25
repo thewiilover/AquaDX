@@ -13,6 +13,10 @@
   import { t } from "./libs/i18n";
   import Transfer from "./pages/Transfer/Transfer.svelte";
   import { link } from "d3";
+  import Communities from "./pages/Home/Communities.svelte";
+  import LinkCard from "./pages/Home/LinkCard.svelte";
+  import SetupInstructions from "./pages/Home/SetupInstructions.svelte";
+  import PageNotFound from "./pages/PageNotFound.svelte";
 
   console.log(`%c
 ┏━┓         ┳━┓━┓┏━
@@ -38,15 +42,6 @@
         playedMai = !!game.mai2
       })
     }).catch(e => console.error(e))
-
-    const themeStyle = document.createElement("link");
-    themeStyle.rel = "stylesheet";
-    switch (localStorage.getItem("theme")) {
-      case "cn":
-        themeStyle.href = "/assets/theme/cn.css";
-    };
-    if (themeStyle.href)
-      document.head.appendChild(themeStyle);
   }
   let path = window.location.pathname;
 </script>
@@ -82,13 +77,18 @@
   <Route path="/verify" component={Welcome} /> <!-- For email verification only, backwards compatibility with AquaNet2 in the future -->
   <Route path="/reset-password" component={Welcome} />
   <Route path="/home" component={Home} />
+  <Route path="/support" component={Communities} />
+  <Route path="/cards" component={LinkCard} />
+  <Route path="/setup" component={SetupInstructions} />
   <Route path="/ranking" component={Ranking} />
   <Route path="/ranking/:game" component={Ranking} />
   <Route path="/u/:username" component={UserHome} />
   <Route path="/u/:username/:game" component={UserHome} />
   <Route path="/settings" component={Settings} />
+  <Route path="/settings/:page" component={Settings} />
   <Route path="/pictures" component={MaiPhoto} />
   <Route path="/transfer" component={Transfer} />
+  <Route component={PageNotFound} />
 </Router>
 
 <style lang="sass">

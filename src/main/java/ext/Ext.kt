@@ -35,8 +35,10 @@ import java.util.concurrent.locks.Lock
 import kotlin.reflect.KCallable
 import kotlin.reflect.KClass
 import kotlin.reflect.KMutableProperty1
+import kotlin.reflect.full.declaredMemberProperties
 import kotlin.reflect.full.isSubclassOf
 import kotlin.reflect.full.memberProperties
+import kotlin.reflect.jvm.javaField
 import kotlin.reflect.jvm.jvmErasure
 
 typealias RP = RequestParam
@@ -81,7 +83,9 @@ annotation class SettingField(
 
 // Reflection
 @Suppress("UNCHECKED_CAST")
-fun <T : Any> KClass<T>.vars() = memberProperties.mapNotNull { it as? Var<T, Any> }
+fun <T : Any> KClass<T>.ownVars() = declaredMemberProperties.sortedBy { it.javaField?.declaringClass?.declaredFields?.indexOf(it.javaField) ?: Int.MAX_VALUE }.mapNotNull { it as? Var<T, Any> }
+@Suppress("UNCHECKED_CAST")
+fun <T : Any> KClass<T>.vars(): List<Var<T, Any>> = supertypes.mapNotNull { it.classifier as? KClass<*> }.filter { !it.java.isInterface }.flatMap{ it.vars() as List<Var<T, Any>> } + ownVars()
 fun <T : Any> KClass<T>.varsMap() = vars().associateBy { it.name }
 fun <T : Any> KClass<T>.getters() = java.methods.filter { it.name.startsWith("get") }
 fun <T : Any> KClass<T>.gettersMap() = getters().associateBy { it.name.removePrefix("get").firstCharLower() }
@@ -213,6 +217,8 @@ val <K, V> Map<K, V>.mut get() = toMutableMap()
 val <T> Set<T>.mut get() = toMutableSet()
 
 fun <T> List<T>.unique(fn: (T) -> Any) = distinctBy(fn).ifEmpty { null }
+val <T> Collection<T>.csv get() = joinToString(",")
+val IntArray.csv get() = joinToString(",")
 
 // Optionals
 operator fun <T> Optional<T>.invoke(): T? = orElse(null)
@@ -229,6 +235,7 @@ fun Str.fromChusanUsername() = String(this.toByteArray(StandardCharsets.ISO_8859
 fun Str.truncate(len: Int) = if (this.length > len) this.take(len) + "..." else this
 val Str.some get() = ifBlank { null }
 val ByteArray.hexStr get() = toHexString()
+operator fun StringBuilder.plusAssign(other: String) { this.append(other) }
 
 // Coroutine
 suspend fun <T> async(block: suspend kotlinx.coroutines.CoroutineScope.() -> T): T = withContext(Dispatchers.IO) { block() }
@@ -257,6 +264,7 @@ operator fun <E> List<E>.component13(): E = get(12)
 
 inline operator fun <reified E> List<Any?>.invoke(i: Int) = get(i) as E
 val empty = emptyList<Any>()
+val emptyMap = emptyMap<Any, Any>()
 
 val <F> Pair<F, *>.l get() = component1()
 val <S> Pair<*, S>.r get() = component2()

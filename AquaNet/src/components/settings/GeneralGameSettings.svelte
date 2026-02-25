@@ -1,7 +1,6 @@
 <script>
   import { fade } from "svelte/transition";
   import { FADE_IN, FADE_OUT } from "../../libs/config";
-  import GameSettingFields from "./GameSettingFields.svelte";
   import { t, ts } from "../../libs/i18n";
   import useLocalStorage from "../../libs/hooks/useLocalStorage.svelte";
   import RegionSelector from "./RegionSelector.svelte";
@@ -9,11 +8,10 @@
   const rounding = useLocalStorage("rounding", true);
 </script>
 
-<div out:fade={FADE_OUT} in:fade={FADE_IN} class="fields">
-  <blockquote>
-    {ts("settings.gameNotice")}
+<div class="fields">
+  <blockquote class="info">
+    {ts("settings.siteNotice")}
   </blockquote>
-  <GameSettingFields game="general"/>
   <div class="field">
     <div class="bool">
       <input id="rounding" type="checkbox" bind:checked={rounding.value}/>
@@ -24,7 +22,7 @@
     </div>
   </div>
   <div class="divider"></div>
-  <blockquote>
+  <blockquote class="info">
     {ts("settings.regionNotice")}
   </blockquote>
   <RegionSelector/>

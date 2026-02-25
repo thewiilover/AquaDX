@@ -31,7 +31,7 @@
   // Available (unlocked) options for each kind of item
   // In allItems: 'namePlate', 'frame', 'trophy', 'mapIcon', 'systemVoice', 'avatarAccessory'
   let allItems: Record<string, Record<string, { name: string }>> = {}
-  let iKinds = { namePlate: 1, frame: 2, trophy: 3, trophySub1: 4, trophySub2: 5, mapIcon: 8, systemVoice: 9, avatarAccessory: 11 }
+  let iKinds = { namePlate: 1, frame: 2, trophy: 3, trophySub1: 4, trophySub2: 5, mapIcon: 8, systemVoice: 9, avatarAccessory: 11, stage: 13 }
   // In userbox: 'nameplateId', 'frameId', 'trophyId', 'mapIconId', 'voiceId', 'avatar{Wear/Head/Face/Skin/Item/Front/Back}'
   let userbox: UserBox
   let avatarKinds = ['Wear', 'Head', 'Face', 'Skin', 'Item', 'Front', 'Back'] as const
@@ -242,16 +242,6 @@
     link.click();
   }
 
-  function g(v: string) {
-    if (v != ("\x63\x68\x75\x6E\x69\x74\x68\x6D ").repeat(3).trim()) return;
-    const t = v.substring(5, 6) + v.substring(1, 2) + "eme";
-    if (!localStorage.getItem(t)) {
-      localStorage.setItem(t, v.substring(0, 1) + "\x6E");
-    } else
-      localStorage.removeItem(t);
-    setTimeout(location.reload, 1000); // ?
-  }
-
   let DDSreader: DDS | undefined;
 
   let USERBOX_PROGRESS = 0;
@@ -266,7 +256,7 @@
 
   type OnlyNumberPropsOf<T extends Record<string, any>> = {[Prop in keyof T as (T[Prop] extends number ? Prop : never)]: T[Prop]}
   let userboxSelected: keyof OnlyNumberPropsOf<UserBox> = "avatarWear";
-  const userboxNewOptions = ["systemVoice", "frame", "trophy", "mapIcon"]
+  const userboxNewOptions = ["systemVoice", "frame", "trophy", "mapIcon", "stage"]
 
   async function userboxSafeDrop(event: Event & { currentTarget: EventTarget & HTMLInputElement; }) {
     if (!event.target) return null;
@@ -316,8 +306,7 @@
 
 <StatusOverlays {error} loading={loading || !!submitting} />
 {#if !loading && !error}
-<div out:fade={FADE_OUT} in:fade={FADE_IN}>
-  <h2>{t("userbox.header.general")}</h2>
+<div>
   <div class="general-options">
     <GameSettingFields game="chu3"/>
 
@@ -328,21 +317,23 @@
   {#if !USERBOX_ENABLED.value || !USERBOX_INSTALLED}
     <div class="fields">
       {#each userItems as { iKey, ubKey, items }, i}
-        <div class="field">
-          <label for={ubKey}>{ts(`userbox.${ubKey}`)}</label>
-          <div>
-            <select bind:value={userbox[ubKey]} id={ubKey} on:change={() => changed = [...changed, ubKey]}>
-              {#each items as option}
-                <option value={option.itemId}>{allItems[iKey][option.itemId]?.name || `(unknown ${option.itemId})`}</option>
-              {/each}
-            </select>
-            {#if changed.includes(ubKey)}
-              <button transition:slide={{axis: "x"}} on:click={() => submit(ubKey)} disabled={!!submitting}>
-                {t("settings.profile.save")}
-              </button>
-            {/if}
+        {#if items.length > 0}
+          <div class="field">
+            <label for={ubKey}>{ts(`userbox.${ubKey}`)}</label>
+            <div>
+              <select bind:value={userbox[ubKey]} id={ubKey} on:change={() => changed = [...changed, ubKey]}>
+                {#each items as option}
+                  <option value={option.itemId}>{allItems[iKey][option.itemId]?.name || `(unknown ${option.itemId})`}</option>
+                {/each}
+              </select>
+              {#if changed.includes(ubKey)}
+                <button transition:slide={{axis: "x"}} on:click={() => submit(ubKey)} disabled={!!submitting}>
+                  {t("settings.profile.save")}
+                </button>
+              {/if}
+            </div>
           </div>
-        </div>
+        {/if}
       {/each}
     </div>
   {:else}
@@ -383,21 +374,23 @@
     </div>
     <div class="fields">
       {#each userItems.filter(i => userboxNewOptions.includes(i.iKey)) as { iKey, ubKey, items }, i}
-        <div class="field">
-          <label for={ubKey}>{ts(`userbox.${ubKey}`)}</label>
-          <div>
-            <select bind:value={userbox[ubKey]} id={ubKey} on:change={() => changed = [...changed, ubKey]}>
-              {#each items as option}
-                <option value={option.itemId}>{allItems[iKey][option.itemId]?.name || `(unknown ${option.itemId})`}</option>
-              {/each}
-            </select>
-            {#if changed.includes(ubKey)}
-              <button transition:slide={{axis: "x"}} on:click={() => submit(ubKey)} disabled={!!submitting}>
-                {t("settings.profile.save")}
-              </button>
-            {/if}
+        {#if items.length > 0}
+          <div class="field">
+            <label for={ubKey}>{ts(`userbox.${ubKey}`)}</label>
+            <div>
+              <select bind:value={userbox[ubKey]} id={ubKey} on:change={() => changed = [...changed, ubKey]}>
+                {#each items as option}
+                  <option value={option.itemId}>{allItems[iKey][option.itemId]?.name || `(unknown ${option.itemId})`}</option>
+                {/each}
+              </select>
+              {#if changed.includes(ubKey)}
+                <button transition:slide={{axis: "x"}} on:click={() => submit(ubKey)} disabled={!!submitting}>
+                  {t("settings.profile.save")}
+                </button>
+              {/if}
+            </div>
           </div>
-        </div>
+        {/if}
       {/each}
     </div>
   {/if}
@@ -476,10 +469,6 @@
 
 input
   width: 100%
-
-
-h2
-  margin-bottom: 0.5rem
 
 .general-options
   display: flex

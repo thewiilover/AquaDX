@@ -5,13 +5,14 @@ import icu.samnyan.aqua.sega.chusan.ChusanController
 import icu.samnyan.aqua.sega.chusan.model.request.Chu3UserAll
 import icu.samnyan.aqua.sega.chusan.model.userdata.*
 import icu.samnyan.aqua.sega.general.model.CardStatus
-import icu.samnyan.aqua.sega.general.model.response.UserRecentRating
+import icu.samnyan.aqua.sega.general.model.UserRecentRating
+import kotlinx.serialization.encodeToString
 
 @Suppress("UNCHECKED_CAST")
 fun ChusanController.upsertApiInit() {
     "UpsertUserChargelog" {
         val charge = parsing { mapper.convert<UserCharge>(data["userCharge"] as JDict) }
-        charge.user = db.userData.findByCard_ExtId(uid)() ?: (400 - "User not found")
+        charge.user = db.userData.findByCard_ExtId(uid) ?: (400 - "User not found")
         charge.id = db.userCharge.findByUser_Card_ExtIdAndChargeId(uid, charge.chargeId)?.id ?: 0
         db.userCharge.save(charge)
         charge.user.card?.let { cardService.updateCardTimestamp(it, "chu3") }
@@ -23,10 +24,10 @@ fun ChusanController.upsertApiInit() {
 
         req.run {
             // UserData
-            val oldUser = db.userData.findByCard_ExtId(uid)()
+            val oldUser = db.userData.findByCard_ExtId(uid)
             val u = (userData?.get(0) ?: return@api null).apply {
                 id = oldUser?.id ?: 0
-                card = oldUser?.card ?: us.cardRepo.findByExtId(uid).expect("Card not found")
+                card = oldUser?.card ?: us.cardRepo.findByExtId(uid) ?: (404 - "Card not found")
 
                 val version = data["version"] as? String ?: "0.00"
                 val versionNumber = version.toDoubleOrNull() ?: 0.0
@@ -55,7 +56,7 @@ fun ChusanController.upsertApiInit() {
                 db.userRegions.save(region)
             }
 
-            versionHelper[u.lastClientId] = u.lastDataVersion
+            versionHelper.set(u.lastClientId, u.lastDataVersion)
 
             // Set users
             listOfNotNull(
@@ -74,12 +75,12 @@ fun ChusanController.upsertApiInit() {
                 userRatingBaseNextList to "rating_next_list",
                 userRatingBaseNewList to "rating_new_list"
             ).filter { it.first != null }.forEach { (list, key) ->
-                val d = db.userGeneralData.findByUserAndPropertyKey(u, key)()
+                val d = db.userGeneralData.findByUserAndPropertyKey(u, key)
                     ?: UserGeneralData().apply { user = u; propertyKey = key }
                 db.userGeneralData.save(d.apply { propertyValue = list!!.str() })
             }
 
-            val misc = db.userMisc.findSingleByUser(u)() ?: Chu3UserMisc().apply { user = u }
+            val misc = db.userMisc.findSingleByUser(u) ?: Chu3UserMisc().apply { user = u }
 
             // Favorites
             userFavoriteMusicList?.filter { it.musicId != -1 }?.ifEmpty { null }?.let { list ->
@@ -121,7 +122,7 @@ fun ChusanController.upsertApiInit() {
             // List data
             userGameOption?.get(0)?.let { obj ->
                 db.userGameOption.saveAndFlush(obj.apply {
-                    id = db.userGameOption.findSingleByUser(u)()?.id ?: 0 }) }
+                    id = db.userGameOption.findSingleByUser(u)?.id ?: 0 }) }
 
             userMapAreaList?.let { list ->
                 db.userMap.saveAll(list.distinctBy { it.mapAreaId }.mapApply {
@@ -145,7 +146,7 @@ fun ChusanController.upsertApiInit() {
 
             userChargeList?.let { list ->
                 db.userCharge.saveAll(list.distinctBy { it.chargeId }.mapApply {
-                    id = db.userCharge.findByUserAndChargeId(u, chargeId)()?.id ?: 0 }) }
+                    id = db.userCharge.findByUserAndChargeId(u, chargeId)?.id ?: 0 }) }
 
             userCourseList?.let { list ->
                 db.userCourse.saveAll(list.distinctBy { it.courseId }.mapApply {
@@ -159,11 +160,18 @@ fun ChusanController.upsertApiInit() {
                 db.userChallenge.saveAll(list.distinctBy { it.unlockChallengeId }.mapApply {
                     id = db.userChallenge.findByUserAndUnlockChallengeId(u, unlockChallengeId)?.id ?: 0 }) }
 
+            userLinkedVerseList?.let { list ->
+                db.userLinkedVerse.saveAll(list.map{
+                    it.apply{ it.user = u }
+                }.distinctBy { it.linkedVerseId }.mapApply {
+                    id = db.userLinkedVerse.findByUserAndLinkedVerseId(u, linkedVerseId)?.id ?: 0 })
+                }
+
             // Need testing
 //            userLoginBonusList?.let { list ->
 //                db.userLoginBonus.saveAll(list.distinctBy { it["presetId"] as String }.map {
 //                    val id = it["presetId"]!!.int
-//                    (db.userLoginBonus.findLoginBonus(uid.int, 1, id)() ?: UserLoginBonus()).apply {
+//                    (db.userLoginBonus.findLoginBonus(uid.int, 1, id) ?: UserLoginBonus()).apply {
 //                        user = u.id.toInt()
 //                        presetId = id
 //                        lastUpdateDate = LocalDateTime.now()
@@ -173,7 +181,7 @@ fun ChusanController.upsertApiInit() {
 //            }
 
             req.userCMissionList?.forEach { d ->
-                (db.userCMission.findByUser_Card_ExtIdAndMissionId(uid, d.missionId)()
+                (db.userCMission.findByUser_Card_ExtIdAndMissionId(uid, d.missionId)
                     ?: UserCMission().apply {
                         missionId = d.missionId
                         user = u
@@ -181,7 +189,7 @@ fun ChusanController.upsertApiInit() {
                     ).apply { point = d.point }.also { db.userCMission.save(it) }
 
                 d.userCMissionProgressList?.forEach inner@ { p ->
-                    (db.userCMissionProgress.findByUser_Card_ExtIdAndMissionIdAndOrder(uid, d.missionId, p.order)()
+                    (db.userCMissionProgress.findByUser_Card_ExtIdAndMissionIdAndOrder(uid, d.missionId, p.order)
                         ?: UserCMissionProgress().apply {
                             missionId = d.missionId
                             order = p.order
